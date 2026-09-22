@@ -1,0 +1,212 @@
+<div id="mind_engine_settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <div class="flex-container alignitemscenter margin0">
+                <i class="fa-solid fa-compass margin-right-5" style="color: var(--SmartThemeQuoteColor, #38bdf8); font-size: 13px;"></i>
+                <b style="letter-spacing: 0.5px; font-size: 13px;" data-i18n="drawer_title">灵犀 (Mind Compass)</b>
+            </div>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content" style="padding: 10px 4px;">
+            <!-- 引擎在线状态条 -->
+            <div class="mind-status-strip">
+                <div class="mind-status-left">
+                    <div id="mind_engine_indicator" class="mind-status-dot"></div>
+                    <div>
+                        <div style="font-weight: 600; color: var(--SmartThemeBodyColor, #f1f5f9); font-size: 12px;" data-i18n="engine_cloud_title">Jev 云端判定引擎</div>
+                        <div id="mind_engine_status_text" style="font-size: 10.5px; color: var(--SmartThemeEmColor, #94a3b8);" data-i18n="engine_status_sub">api.typesafe.ai | 官方直连 | 零本地后端</div>
+                    </div>
+                </div>
+                <span class="hud-stage-pill" style="font-family: monospace; font-size: 10px;">v2.1 PRO</span>
+            </div>
+
+            <!-- API 密钥原生保险库区块 -->
+            <div class="mind-card">
+                <div class="flex-container alignitemscenter justifySpaceBetween" style="margin-bottom: 6px;">
+                    <div class="flex-container alignitemscenter" style="gap: 6px;">
+                        <span style="font-size: 11px; font-weight: 600; color: var(--SmartThemeEmColor, #94a3b8); letter-spacing: 0.5px;" data-i18n="api_key_label">API 密钥配置</span>
+                        <span id="mind_vault_badge" class="mind-vault-badge" title="受 SillyTavern /api/secrets 原生保险库防护">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span data-i18n="vault_protected">原生保险库已保护</span>
+                        </span>
+                    </div>
+                    <a href="https://typesafe.ai" target="_blank" style="font-size: 10.5px; color: var(--SmartThemeQuoteColor, #38bdf8); text-decoration: none;" data-i18n="get_key_link">获取密钥</a>
+                </div>
+                <div class="flex-container alignitemscenter" style="gap: 6px;">
+                    <input id="mind_api_key" class="text_pole" type="password" autocomplete="new-password" data-lpignore="true" data-i18n-ph="api_key_placeholder" placeholder="请输入 apikey_..." style="flex: 1; padding: 5px 8px; font-size: 11px; font-family: monospace;" />
+                    <button id="btn_save_key" class="menu_button" data-i18n-title="save_key_title" title="保存密钥至保险库" style="padding: 4px 8px; font-size: 11px;"><i class="fa-solid fa-floppy-disk"></i></button>
+                    <button id="btn_toggle_key_vis" class="menu_button" data-i18n-title="toggle_key_title" title="显示/隐藏密钥" style="padding: 4px 8px; font-size: 11px;"><i class="fa-solid fa-eye"></i></button>
+                    <button id="btn_clear_key" class="menu_button" data-i18n-title="clear_key_title" title="从保险库移除密钥" style="padding: 4px 8px; font-size: 11px; color: #f87171;"><i class="fa-solid fa-trash-can"></i></button>
+                    <button id="btn_test_connection" class="menu_button" style="padding: 4px 10px; font-size: 11px; white-space: nowrap;">
+                        <span data-i18n="btn_test_connection">测试连接</span>
+                    </button>
+                </div>
+                <div id="mind_api_status" style="font-size: 10.5px; color: var(--SmartThemeEmColor, #94a3b8); margin-top: 5px;" data-i18n="api_status_default">
+                    密钥将通过 SillyTavern /api/secrets 隔离加密保存在服务端，绝不存入 settings.json 明文。
+                </div>
+            </div>
+
+            <!-- 角色宏变量映射区块 (原生探测、候选胶囊与正文高亮选择) -->
+            <div class="mind-card">
+                <div class="flex-container alignitemscenter justifySpaceBetween" style="margin-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 600; color: var(--SmartThemeEmColor, #94a3b8); letter-spacing: 0.5px;" data-i18n="macro_section_title">角色宏变量映射</span>
+                    <button id="btn_toggle_card_preview" class="menu_button" style="padding: 2px 7px; font-size: 10px; white-space: nowrap;" title="查看角色卡原文并点击高亮宏">
+                        <i class="fa-solid fa-file-lines margin-right-5"></i><span data-i18n="macro_view_source">卡内文本与宏高亮</span>
+                    </button>
+                </div>
+
+                <!-- 目标角色选择器 -->
+                <div style="margin-bottom: 8px;">
+                    <div style="font-size: 10.5px; color: var(--SmartThemeEmColor, #94a3b8); margin-bottom: 3px;" data-i18n="macro_target_char">目标角色</div>
+                    <select id="mind_macro_char_select" class="text_pole" style="width: 100%; padding: 4px 8px; font-size: 11px;">
+                        <option value="" data-i18n="macro_char_default">当前对话角色</option>
+                    </select>
+                </div>
+
+                <!-- 智能检测候选胶囊列表 (点击快捷分配) -->
+                <div id="mind_macro_chips_container" style="margin-bottom: 8px; display: none;">
+                    <div style="font-size: 10px; color: var(--SmartThemeEmColor, #64748b); margin-bottom: 3px;" data-i18n="macro_chips_hint">卡内检测到的宏 (点击选择直接绑定)：</div>
+                    <div id="mind_macro_chips_list" class="mind-chip-list"></div>
+                </div>
+
+                <!-- 好感度宏映射 -->
+                <div style="margin-bottom: 8px;">
+                    <div class="flex-container justifySpaceBetween alignitemscenter" style="margin-bottom: 3px;">
+                        <span style="font-size: 10.5px; color: var(--SmartThemeEmColor, #94a3b8);" data-i18n="macro_affinity_label">好感度写入宏</span>
+                        <small style="font-size: 9.5px; color: var(--SmartThemeEmColor, #64748b);" data-i18n="macro_affinity_desc">默认 affinity</small>
+                    </div>
+                    <div class="flex-container" style="gap: 4px;">
+                        <input id="mind_macro_affinity_input" class="text_pole" type="text" placeholder="affinity" style="flex: 1; padding: 4px 8px; font-size: 11px; font-family: monospace;" />
+                        <button id="btn_reset_aff_default" class="menu_button" style="padding: 2px 6px; font-size: 10px;" title="重置为默认值 affinity" data-i18n="macro_btn_default">默认</button>
+                    </div>
+                </div>
+
+                <!-- 关系阶段宏映射 -->
+                <div style="margin-bottom: 8px;">
+                    <div class="flex-container justifySpaceBetween alignitemscenter" style="margin-bottom: 3px;">
+                        <span style="font-size: 10.5px; color: var(--SmartThemeEmColor, #94a3b8);" data-i18n="macro_stage_label">关系阶段写入宏</span>
+                        <small style="font-size: 9.5px; color: var(--SmartThemeEmColor, #64748b);" data-i18n="macro_stage_desc">默认 relationship_stage</small>
+                    </div>
+                    <div class="flex-container" style="gap: 4px;">
+                        <input id="mind_macro_stage_input" class="text_pole" type="text" placeholder="relationship_stage" style="flex: 1; padding: 4px 8px; font-size: 11px; font-family: monospace;" />
+                        <button id="btn_reset_stg_default" class="menu_button" style="padding: 2px 6px; font-size: 10px;" title="重置为默认值 relationship_stage" data-i18n="macro_btn_default">默认</button>
+                    </div>
+                </div>
+
+                <!-- 角色卡正文宏高亮审查器 (可折叠) -->
+                <div id="mind_card_preview_box" class="mind-preview-box" style="display: none;">
+                    <div class="flex-container justifySpaceBetween alignitemscenter" style="margin-bottom: 4px; border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08)); padding-bottom: 4px;">
+                        <b style="font-size: 10px; color: var(--SmartThemeQuoteColor, #38bdf8);" data-i18n="macro_preview_title">角色卡设定正文 (点击黄色高亮宏可直接绑定)</b>
+                        <span id="mind_macro_match_count" style="font-size: 9.5px; color: var(--SmartThemeEmColor, #64748b);"></span>
+                    </div>
+                    <div id="mind_card_preview_content" class="mind-preview-text"></div>
+                </div>
+
+                <div class="flex-container justifySpaceBetween alignitemscenter" style="margin-top: 10px;">
+                    <button id="btn_save_macro_binding" class="menu_button" style="padding: 4px 12px; font-size: 11px; white-space: nowrap;">
+                        <span data-i18n="btn_save_macro">保存角色宏映射</span>
+                    </button>
+                    <span id="mind_macro_save_status" style="font-size: 10.5px; color: #10b981; display: none;" data-i18n="macro_save_success">已保存</span>
+                </div>
+            </div>
+
+            <!-- 性格动力学调节区块 (纯连续特征，无死板预设分类) -->
+            <div class="mind-card">
+                <div class="flex-container alignitemscenter justifySpaceBetween" style="margin-bottom: 6px;">
+                    <div class="flex-container alignitemscenter" style="gap: 6px;">
+                        <span style="font-size: 11px; font-weight: 600; color: var(--SmartThemeEmColor, #94a3b8); letter-spacing: 0.5px;" data-i18n="personality_section_title">性格动力学调节</span>
+                        <span class="hud-stage-pill" style="font-size: 9.5px;" data-i18n="personality_tag_continuous">纯连续特征</span>
+                    </div>
+                    <button id="btn_analyze_personality" class="menu_button" style="padding: 2px 8px; font-size: 10px; white-space: nowrap;" title="调用 Jev 云端模型智能分析当前角色卡文本并推断参数">
+                        <i class="fa-solid fa-wand-magic-sparkles margin-right-5"></i><span data-i18n="btn_analyze_personality">Jev 智能推断</span>
+                    </button>
+                </div>
+                <div style="font-size: 10px; color: var(--SmartThemeEmColor, #64748b); margin-bottom: 8px; line-height: 1.3;" data-i18n="personality_section_desc">
+                    无死板预设分类，纯连续特征调节。可由 Jev 自动推断并随时手动微调覆盖。
+                </div>
+
+                <div class="mind-slider-group">
+                    <!-- 1. 奉承抗性 (0.00 ~ 1.00) -->
+                    <div class="mind-slider-item">
+                        <div class="mind-slider-header">
+                            <span class="mind-slider-title" data-i18n="slider_flattery_label">奉承抗性</span>
+                            <span id="mind_val_flattery" class="mind-slider-badge">0.50</span>
+                        </div>
+                        <div class="mind-slider-hint" data-i18n="slider_flattery_hint">0.00: 极度受用夸赞 | 1.00: 极度反感谄媚</div>
+                        <input id="mind_slider_flattery" class="mind-slider-control" type="range" min="0.00" max="1.00" step="0.05" value="0.50" />
+                    </div>
+
+                    <!-- 2. 脆弱共鸣敏感度 (0.50 ~ 2.00) -->
+                    <div class="mind-slider-item">
+                        <div class="mind-slider-header">
+                            <span class="mind-slider-title" data-i18n="slider_vuln_label">共鸣敏感度</span>
+                            <span id="mind_val_vuln" class="mind-slider-badge">1.00</span>
+                        </div>
+                        <div class="mind-slider-hint" data-i18n="slider_vuln_hint">0.50: 情感冷感迟钝 | 2.00: 极度渴望脆弱共鸣</div>
+                        <input id="mind_slider_vuln" class="mind-slider-control" type="range" min="0.50" max="2.00" step="0.05" value="1.00" />
+                    </div>
+
+                    <!-- 3. 初始心防壁垒 (0.10 ~ 0.95) -->
+                    <div class="mind-slider-item">
+                        <div class="mind-slider-header">
+                            <span class="mind-slider-title" data-i18n="slider_defense_label">初始心防壁垒</span>
+                            <span id="mind_val_defense" class="mind-slider-badge">0.80</span>
+                        </div>
+                        <div class="mind-slider-hint" data-i18n="slider_defense_hint">0.10: 幼驯染/无防备 | 0.95: 刺客/高冷死守</div>
+                        <input id="mind_slider_defense" class="mind-slider-control" type="range" min="0.10" max="0.95" step="0.05" value="0.80" />
+                    </div>
+                </div>
+
+                <div class="flex-container justifySpaceBetween alignitemscenter" style="margin-top: 6px;">
+                    <button id="btn_save_personality" class="menu_button" style="padding: 4px 12px; font-size: 11px; white-space: nowrap;">
+                        <i class="fa-solid fa-floppy-disk margin-right-5"></i><span data-i18n="btn_save_personality">保存性格参数</span>
+                    </button>
+                    <span id="mind_personality_status" style="font-size: 10.5px; color: var(--SmartThemeEmColor, #94a3b8); display: none;"></span>
+                </div>
+            </div>
+
+            <!-- 功能开关组 -->
+            <div style="margin-top: 8px;">
+                <div class="mind-option-row">
+                    <div class="mind-option-meta">
+                        <b data-i18n="opt_hud_title">悬浮心智罗盘</b>
+                        <span data-i18n="opt_hud_desc">在主视窗渲染可拖拽悬浮窗，展示好感度、心防护盾、深层信任与气场博弈刻度</span>
+                    </div>
+                    <input id="toggle_mind_hud" type="checkbox" checked />
+                </div>
+
+                <div class="mind-option-row">
+                    <div class="mind-option-meta">
+                        <b data-i18n="opt_expr_title">微表情立绘联动</b>
+                        <span data-i18n="opt_expr_desc">Jev 判定微表情自动驱动 28 种 GoEmotions 标准立绘差分平滑切换</span>
+                    </div>
+                    <input id="toggle_mind_expressions" type="checkbox" checked />
+                </div>
+
+                <div class="mind-option-row">
+                    <div class="mind-option-meta">
+                        <b data-i18n="opt_inject_title">世界书广播注入</b>
+                        <span data-i18n="opt_inject_desc">将好感度与阶段标签静默注入上下文，原生触发世界书剧情条目</span>
+                    </div>
+                    <input id="toggle_mind_injection" type="checkbox" checked />
+                </div>
+
+                <div class="mind-option-row">
+                    <div class="mind-option-meta">
+                        <b data-i18n="opt_persist_title">角色卡持久化</b>
+                        <span data-i18n="opt_persist_desc">使用酒馆原生 writeExtensionField 写盘，换会话自动继承心智羁绊</span>
+                    </div>
+                    <input id="toggle_mind_persist" type="checkbox" checked />
+                </div>
+            </div>
+
+            <!-- 底部重置操作 -->
+            <div style="margin-top: 10px;">
+                <button id="btn_reset_mind_state" class="menu_button" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; font-size: 11px; white-space: nowrap; box-sizing: border-box; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); color: #fca5a5;">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span data-i18n="btn_reset_mind">重置当前角色心智状态</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
