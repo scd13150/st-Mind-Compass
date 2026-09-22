@@ -43,18 +43,60 @@ function safeGetRequestHeaders() {
  * 酒馆原生密钥保险库管理器 (Native Secret Vault Protection)
  * ============================================================================
  */
+let cachedVaultExposureAllowed = null;
+
 class SecretVaultManager {
+    /**
+     * 安全探测酒馆服务端是否开启 allowKeysExposure: true
+     * 官方接口 /api/secrets/settings 为公开信息接口，未开启时返回 false，绝不触发 403 阻断或控制台报错
+     */
+    static async isVaultExposureAllowed() {
+        if (cachedVaultExposureAllowed !== null) return cachedVaultExposureAllowed;
+        try {
+            const resp = await fetch('/api/secrets/settings', {
+                method: 'POST',
+                headers: safeGetRequestHeaders(),
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                cachedVaultExposureAllowed = (data?.allowKeysExposure === true);
+                return cachedVaultExposureAllowed;
+            }
+        } catch (_) {}
+        cachedVaultExposureAllowed = false;
+        return false;
+    }
+
     static async getApiKey() {
         if (inMemoryApiKey) return inMemoryApiKey;
 
-        // 1. 优先从 extension_settings 持久化读取（默认模式，跨浏览器刷新/关闭自动恢复，无需配置 yaml）
+        // 1. 保护模式：仅在明确探测到服务端允许暴露时才调用 /api/secrets/find
+        const canUseVault = await this.isVaultExposureAllowed();
+        if (canUseVault) {
+            try {
+                const resp = await fetch('/api/secrets/find', {
+                    method: 'POST',
+                    headers: safeGetRequestHeaders(),
+                    body: JSON.stringify({ key: SECRET_KEY_ID }),
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && data.value) {
+                        inMemoryApiKey = data.value.trim();
+                        return inMemoryApiKey;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // 2. 默认模式：从 extension_settings 持久化读取（免改 config，跨会话自动保留）
         const settings = extension_settings.mind_engine;
         if (settings && settings.apiKey) {
             inMemoryApiKey = settings.apiKey.trim();
             return inMemoryApiKey;
         }
 
-        // 2. 检查会话临时存储 sessionStorage (当前标签页快速兜底)
+        // 3. 检查会话临时存储 sessionStorage (当前标签页快速兜底)
         try {
             const sessionVal = sessionStorage.getItem(SECRET_KEY_ID);
             if (sessionVal) {
@@ -63,38 +105,39 @@ class SecretVaultManager {
             }
         } catch (_) {}
 
-        // 3. 尝试从酒馆原生服务端保险库读取（若用户开启了 allowKeysExposure: true）
-        try {
-            const resp = await fetch('/api/secrets/find', {
-                method: 'POST',
-                headers: safeGetRequestHeaders(),
-                body: JSON.stringify({ key: SECRET_KEY_ID }),
-            });
-            if (resp.ok) {
-                const data = await resp.json();
-                if (data && data.value) {
-                    inMemoryApiKey = data.value.trim();
-                    return inMemoryApiKey;
-                }
-            }
-        } catch (_) {}
-
         return '';
     }
 
     static async saveApiKey(key) {
         inMemoryApiKey = key ? key.trim() : '';
+        const canUseVault = await this.isVaultExposureAllowed();
 
-        // 1. 持久化写入 extension_settings（默认模式，落盘 settings.json，跨会话自动保留）
-        if (!extension_settings.mind_engine) extension_settings.mind_engine = {};
-        if (inMemoryApiKey) {
-            extension_settings.mind_engine.apiKey = inMemoryApiKey;
+        if (canUseVault) {
+            // 保护模式：写入服务端原生保险库，并清除 settings.json 中的明文
+            try {
+                await fetch('/api/secrets/write', {
+                    method: 'POST',
+                    headers: safeGetRequestHeaders(),
+                    body: JSON.stringify({ key: SECRET_KEY_ID, value: inMemoryApiKey }),
+                });
+            } catch (_) {}
+
+            if (extension_settings.mind_engine?.apiKey) {
+                delete extension_settings.mind_engine.apiKey;
+                saveSettingsDebounced();
+            }
         } else {
-            delete extension_settings.mind_engine.apiKey;
+            // 默认模式：写入 extension_settings，随 settings.json 自动持久化
+            if (!extension_settings.mind_engine) extension_settings.mind_engine = {};
+            if (inMemoryApiKey) {
+                extension_settings.mind_engine.apiKey = inMemoryApiKey;
+            } else {
+                delete extension_settings.mind_engine.apiKey;
+            }
+            saveSettingsDebounced();
         }
-        saveSettingsDebounced();
 
-        // 2. 写入 sessionStorage
+        // 会话级临时缓存
         try {
             if (inMemoryApiKey) {
                 sessionStorage.setItem(SECRET_KEY_ID, inMemoryApiKey);
@@ -103,39 +146,30 @@ class SecretVaultManager {
             }
         } catch (_) {}
 
-        // 3. 同步尝试写入服务端保险库（若用户配置了 allowKeysExposure 可双向同步）
-        try {
-            await fetch('/api/secrets/write', {
-                method: 'POST',
-                headers: safeGetRequestHeaders(),
-                body: JSON.stringify({ key: SECRET_KEY_ID, value: inMemoryApiKey }),
-            });
-        } catch (_) {}
-
         return true;
     }
 
     static async deleteApiKey() {
         inMemoryApiKey = '';
+        const canUseVault = await this.isVaultExposureAllowed();
 
-        // 1. 清除 extension_settings
-        if (extension_settings.mind_engine) {
+        if (canUseVault) {
+            try {
+                await fetch('/api/secrets/delete', {
+                    method: 'POST',
+                    headers: safeGetRequestHeaders(),
+                    body: JSON.stringify({ key: SECRET_KEY_ID }),
+                });
+            } catch (_) {}
+        }
+
+        if (extension_settings.mind_engine?.apiKey) {
             delete extension_settings.mind_engine.apiKey;
             saveSettingsDebounced();
         }
 
-        // 2. 清除 sessionStorage
         try {
             sessionStorage.removeItem(SECRET_KEY_ID);
-        } catch (_) {}
-
-        // 3. 清除服务端保险库
-        try {
-            await fetch('/api/secrets/delete', {
-                method: 'POST',
-                headers: safeGetRequestHeaders(),
-                body: JSON.stringify({ key: SECRET_KEY_ID }),
-            });
         } catch (_) {}
     }
 
@@ -159,14 +193,15 @@ const I18N = {
         engine_cloud_title: 'Jev 云端判定引擎',
         engine_status_sub: 'api.typesafe.ai | 官方直连 | 零本地后端',
         api_key_label: 'API 密钥配置',
-        vault_protected: '密钥已就绪',
+        vault_protected: '原生保险库已保护',
+        vault_persisted: '插件设置已持久化',
         get_key_link: '获取密钥',
         api_key_placeholder: '请输入 apikey_...',
         save_key_title: '保存密钥',
         toggle_key_title: '显示/隐藏密钥',
         clear_key_title: '清除密钥',
         btn_test_connection: '测试连接',
-        api_status_default: '密钥保存在插件设置中；若开启 allowKeysExposure 亦会同步至原生保险库。',
+        api_status_default: '默认自动持久化保存于插件设置；若在 config.yaml 开启 allowKeysExposure: true 则无缝升级至原生保险库。',
         api_status_configured: 'API 密钥已配置并自动持久化。可点击「测试连接」验证。',
         api_status_empty: '请输入 TypeSafe API Key 以激活客观心智与羁绊罗盘。',
         api_status_testing: '正在连通 TypeSafe API 进行自检...',
@@ -231,14 +266,15 @@ const I18N = {
         engine_cloud_title: 'Jev Cloud Engine',
         engine_status_sub: 'api.typesafe.ai | Direct HTTPS | Native Zero-Backend',
         api_key_label: 'API Key Configuration',
-        vault_protected: 'Key Ready',
+        vault_protected: 'Vault Protected',
+        vault_persisted: 'Settings Persisted',
         get_key_link: 'Get Key',
         api_key_placeholder: 'Enter apikey_...',
         save_key_title: 'Save API Key',
         toggle_key_title: 'Show/Hide Key',
         clear_key_title: 'Clear API Key',
         btn_test_connection: 'Test Connection',
-        api_status_default: 'Key is persisted in extension settings. If allowKeysExposure is enabled, it also syncs to secrets vault.',
+        api_status_default: 'Default persistence in extension settings; seamlessly upgrades to native secrets vault if allowKeysExposure: true is set in config.yaml.',
         api_status_configured: 'API Key is configured and persisted. Click "Test Connection" to verify.',
         api_status_empty: 'Please enter TypeSafe API Key to activate Mind Compass.',
         api_status_testing: 'Connecting to TypeSafe API for diagnostic ping...',
@@ -962,7 +998,7 @@ async function testApiKeyConnection(key) {
 /**
  * 渲染密钥输入框脱敏/显式状态
  */
-function renderKeyInputState(key) {
+async function renderKeyInputState(key) {
     const input = $('#mind_api_key');
     if (!key) {
         input.val('').attr('type', 'password');
@@ -972,7 +1008,9 @@ function renderKeyInputState(key) {
         return;
     }
 
+    const canUseVault = await SecretVaultManager.isVaultExposureAllowed();
     $('#mind_vault_badge').show();
+    $('#mind_vault_badge span').text(canUseVault ? t('vault_protected') : t('vault_persisted'));
     $('#mind_engine_indicator').css({ background: 'var(--SmartThemeQuoteColor, #38bdf8)', boxShadow: '0 0 6px rgba(56, 189, 248, 0.8)' });
     $('#mind_api_status').css('color', 'var(--SmartThemeEmColor, #94a3b8)').text(t('api_status_configured'));
 
@@ -1023,7 +1061,7 @@ async function loadSettingsDrawer() {
             if (inputVal && !inputVal.includes('••••')) {
                 await SecretVaultManager.saveApiKey(inputVal);
                 isKeyRevealed = false;
-                renderKeyInputState(inputVal);
+                await renderKeyInputState(inputVal);
                 if (window.toastr) window.toastr.success(t('toast_saved_vault'), t('drawer_title'));
             }
         });
@@ -1032,13 +1070,13 @@ async function loadSettingsDrawer() {
             const currentKey = await SecretVaultManager.getApiKey();
             if (!currentKey) return;
             isKeyRevealed = !isKeyRevealed;
-            renderKeyInputState(currentKey);
+            await renderKeyInputState(currentKey);
         });
 
         $('#btn_clear_key').on('click', async function () {
             await SecretVaultManager.deleteApiKey();
             isKeyRevealed = false;
-            renderKeyInputState('');
+            await renderKeyInputState('');
             if (window.toastr) window.toastr.info(t('toast_cleared_vault'), t('drawer_title'));
         });
 
@@ -1048,9 +1086,9 @@ async function loadSettingsDrawer() {
             const isRealInput = inputVal && !inputVal.includes('••••');
             const key = isRealInput ? inputVal : await SecretVaultManager.getApiKey();
             if (isRealInput) {
-                // 保存真实输入值到内存与 sessionStorage，方便本次会话复用
+                // 保存真实输入值到内存与持久化，方便本次会话复用
                 await SecretVaultManager.saveApiKey(key);
-                renderKeyInputState(key);
+                await renderKeyInputState(key);
             }
             testApiKeyConnection(key);
         });

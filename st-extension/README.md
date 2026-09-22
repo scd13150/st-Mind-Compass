@@ -80,7 +80,7 @@ Tavern Mind Engine v2.0 (双脑 + 双轨架构):
 2. 点击右上角闪烁的 **Install Extension**（安装扩展）按钮
 3. 粘贴本仓库 GitHub 地址：
    ```
-   https://github.com/scd13150/st-extension
+   https://github.com/scd13150/st-Mind-Compass
    ```
 4. 点击 **Install**，安装完成后刷新页面即可。
 
@@ -90,7 +90,7 @@ Tavern Mind Engine v2.0 (双脑 + 双轨架构):
 ```bash
 # Windows / Linux / macOS
 cd SillyTavern/data/default-user/extensions/
-git clone https://github.com/scd13150/st-extension.git
+git clone https://github.com/scd13150/st-Mind-Compass.git
 ```
 刷新 SillyTavern 页面即可。
 
@@ -146,7 +146,7 @@ git clone https://github.com/scd13150/st-extension.git
 2. Click the flashing **Install Extension** button in the top right corner.
 3. Paste the GitHub repository URL:
    ```
-   https://github.com/scd13150/st-extension
+   https://github.com/scd13150/st-Mind-Compass
    ```
 4. Click **Install**, then refresh the browser page.
 
@@ -156,7 +156,7 @@ Clone or extract into the SillyTavern extensions directory:
 ```bash
 # Windows / Linux / macOS
 cd SillyTavern/data/default-user/extensions/
-git clone https://github.com/scd13150/st-extension.git
+git clone https://github.com/scd13150/st-Mind-Compass.git
 ```
 Restart or refresh SillyTavern.
 
