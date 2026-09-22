@@ -20,29 +20,29 @@
                 <span class="hud-stage-pill" style="font-family: monospace; font-size: 10px;">v2.1 PRO</span>
             </div>
 
-            <!-- API 密钥原生保险库区块 -->
+            <!-- API 密钥配置区块 -->
             <div class="mind-card">
                 <div class="flex-container alignitemscenter justifySpaceBetween" style="margin-bottom: 6px;">
                     <div class="flex-container alignitemscenter" style="gap: 6px;">
                         <span style="font-size: 11px; font-weight: 600; color: var(--SmartThemeEmColor, #94a3b8); letter-spacing: 0.5px;" data-i18n="api_key_label">API 密钥配置</span>
-                        <span id="mind_vault_badge" class="mind-vault-badge" title="受 SillyTavern /api/secrets 原生保险库防护">
+                        <span id="mind_vault_badge" class="mind-vault-badge" title="自动持久化保存">
                             <i class="fa-solid fa-shield-halved"></i>
-                            <span data-i18n="vault_protected">原生保险库已保护</span>
+                            <span data-i18n="vault_protected">密钥已就绪</span>
                         </span>
                     </div>
                     <a href="https://typesafe.ai" target="_blank" style="font-size: 10.5px; color: var(--SmartThemeQuoteColor, #38bdf8); text-decoration: none;" data-i18n="get_key_link">获取密钥</a>
                 </div>
                 <div class="flex-container alignitemscenter" style="gap: 6px;">
                     <input id="mind_api_key" class="text_pole" type="password" autocomplete="new-password" data-lpignore="true" data-i18n-ph="api_key_placeholder" placeholder="请输入 apikey_..." style="flex: 1; padding: 5px 8px; font-size: 11px; font-family: monospace;" />
-                    <button id="btn_save_key" class="menu_button" data-i18n-title="save_key_title" title="保存密钥至保险库" style="padding: 4px 8px; font-size: 11px;"><i class="fa-solid fa-floppy-disk"></i></button>
+                    <button id="btn_save_key" class="menu_button" data-i18n-title="save_key_title" title="保存密钥" style="padding: 4px 8px; font-size: 11px;"><i class="fa-solid fa-floppy-disk"></i></button>
                     <button id="btn_toggle_key_vis" class="menu_button" data-i18n-title="toggle_key_title" title="显示/隐藏密钥" style="padding: 4px 8px; font-size: 11px;"><i class="fa-solid fa-eye"></i></button>
-                    <button id="btn_clear_key" class="menu_button" data-i18n-title="clear_key_title" title="从保险库移除密钥" style="padding: 4px 8px; font-size: 11px; color: #f87171;"><i class="fa-solid fa-trash-can"></i></button>
+                    <button id="btn_clear_key" class="menu_button" data-i18n-title="clear_key_title" title="清除密钥" style="padding: 4px 8px; font-size: 11px; color: #f87171;"><i class="fa-solid fa-trash-can"></i></button>
                     <button id="btn_test_connection" class="menu_button" style="padding: 4px 10px; font-size: 11px; white-space: nowrap;">
                         <span data-i18n="btn_test_connection">测试连接</span>
                     </button>
                 </div>
                 <div id="mind_api_status" style="font-size: 10.5px; color: var(--SmartThemeEmColor, #94a3b8); margin-top: 5px;" data-i18n="api_status_default">
-                    密钥将通过 SillyTavern /api/secrets 隔离加密保存在服务端，绝不存入 settings.json 明文。
+                    密钥自动保存在插件设置中，跨浏览器刷新与重启均可持久化使用。
                 </div>
             </div>
 

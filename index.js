@@ -47,23 +47,14 @@ class SecretVaultManager {
     static async getApiKey() {
         if (inMemoryApiKey) return inMemoryApiKey;
 
-        // 1. 尝试从酒馆原生服务端保险库读取
-        try {
-            const resp = await fetch('/api/secrets/find', {
-                method: 'POST',
-                headers: safeGetRequestHeaders(),
-                body: JSON.stringify({ key: SECRET_KEY_ID }),
-            });
-            if (resp.ok) {
-                const data = await resp.json();
-                if (data && data.value) {
-                    inMemoryApiKey = data.value.trim();
-                    return inMemoryApiKey;
-                }
-            }
-        } catch (_) {}
+        // 1. 优先从酒馆原生 extension_settings 读取持久化配置（标准设置，随 settings.json 自动落盘）
+        const settings = extension_settings.mind_engine;
+        if (settings && settings.apiKey) {
+            inMemoryApiKey = settings.apiKey.trim();
+            return inMemoryApiKey;
+        }
 
-        // 2. 检查会话临时存储 sessionStorage (脱机兜底)
+        // 2. 检查会话临时存储 sessionStorage (当前标签页快速兜底)
         try {
             const sessionVal = sessionStorage.getItem(SECRET_KEY_ID);
             if (sessionVal) {
@@ -72,32 +63,22 @@ class SecretVaultManager {
             }
         } catch (_) {}
 
-        // 3. 历史迁移守护
-        const legacySettings = extension_settings.mind_engine;
-        if (legacySettings && legacySettings.apiKey) {
-            const oldKey = legacySettings.apiKey.trim();
-            delete legacySettings.apiKey;
-            saveSettingsDebounced();
-            await this.saveApiKey(oldKey);
-            return oldKey;
-        }
-
         return '';
     }
 
     static async saveApiKey(key) {
         inMemoryApiKey = key ? key.trim() : '';
 
-        let serverSaved = false;
-        try {
-            const resp = await fetch('/api/secrets/write', {
-                method: 'POST',
-                headers: safeGetRequestHeaders(),
-                body: JSON.stringify({ key: SECRET_KEY_ID, value: inMemoryApiKey }),
-            });
-            if (resp.ok) serverSaved = true;
-        } catch (_) {}
+        // 1. 持久化写入 extension_settings（标准酒馆扩展持久化规范，绝对不触碰 /api/secrets）
+        if (!extension_settings.mind_engine) extension_settings.mind_engine = {};
+        if (inMemoryApiKey) {
+            extension_settings.mind_engine.apiKey = inMemoryApiKey;
+        } else {
+            delete extension_settings.mind_engine.apiKey;
+        }
+        saveSettingsDebounced();
 
+        // 2. 写入 sessionStorage 保证当次会话高频调用免重复解析
         try {
             if (inMemoryApiKey) {
                 sessionStorage.setItem(SECRET_KEY_ID, inMemoryApiKey);
@@ -106,30 +87,22 @@ class SecretVaultManager {
             }
         } catch (_) {}
 
-        if (extension_settings.mind_engine?.apiKey) {
-            delete extension_settings.mind_engine.apiKey;
-            saveSettingsDebounced();
-        }
-
-        return serverSaved;
+        return true;
     }
 
     static async deleteApiKey() {
         inMemoryApiKey = '';
-        try {
-            await fetch('/api/secrets/delete', {
-                method: 'POST',
-                headers: safeGetRequestHeaders(),
-                body: JSON.stringify({ key: SECRET_KEY_ID }),
-            });
-        } catch (_) {}
-        try {
-            sessionStorage.removeItem(SECRET_KEY_ID);
-        } catch (_) {}
-        if (extension_settings.mind_engine?.apiKey) {
+
+        // 1. 清除 extension_settings
+        if (extension_settings.mind_engine) {
             delete extension_settings.mind_engine.apiKey;
             saveSettingsDebounced();
         }
+
+        // 2. 清除 sessionStorage
+        try {
+            sessionStorage.removeItem(SECRET_KEY_ID);
+        } catch (_) {}
     }
 
     static maskKey(key) {
@@ -152,15 +125,15 @@ const I18N = {
         engine_cloud_title: 'Jev 云端判定引擎',
         engine_status_sub: 'api.typesafe.ai | 官方直连 | 零本地后端',
         api_key_label: 'API 密钥配置',
-        vault_protected: '原生保险库已保护',
+        vault_protected: '密钥已就绪',
         get_key_link: '获取密钥',
         api_key_placeholder: '请输入 apikey_...',
-        save_key_title: '保存密钥至保险库',
+        save_key_title: '保存密钥',
         toggle_key_title: '显示/隐藏密钥',
-        clear_key_title: '从保险库移除密钥',
+        clear_key_title: '清除密钥',
         btn_test_connection: '测试连接',
-        api_status_default: '密钥将通过 SillyTavern /api/secrets 隔离加密保存在服务端，绝不存入 settings.json 明文。',
-        api_status_configured: 'API 密钥已就绪并在原生保险库受保护。可点击「测试连接」验证。',
+        api_status_default: '密钥自动保存在插件设置中，跨浏览器刷新与重启均可持久化使用。',
+        api_status_configured: 'API 密钥已配置并自动持久化。可点击「测试连接」验证。',
         api_status_empty: '请输入 TypeSafe API Key 以激活客观心智与羁绊罗盘。',
         api_status_testing: '正在连通 TypeSafe API 进行自检...',
         api_status_success: '连接成功，Jev 响应耗时: {latency}ms',
@@ -197,8 +170,8 @@ const I18N = {
         hud_stat_defense: '心防护盾',
         hud_stat_trust: '深层信任',
         hud_stat_dominance: '气场博弈',
-        toast_saved_vault: 'API 密钥已安全存入酒馆保险库',
-        toast_cleared_vault: 'API 密钥已从保险库彻底清空',
+        toast_saved_vault: 'API 密钥已成功保存并持久化',
+        toast_cleared_vault: 'API 密钥已彻底清空',
         toast_missing_key: '请先在「灵犀」面板配置 TypeSafe API Key。',
         toast_fluctuation_title: '{name} 情感波动',
         toast_fluctuation_body: '好感度: {aff} ({delta}) | 心防: {def}% | 信任: {tru}% | 表情: {expr}',
@@ -224,15 +197,15 @@ const I18N = {
         engine_cloud_title: 'Jev Cloud Engine',
         engine_status_sub: 'api.typesafe.ai | Direct HTTPS | Native Zero-Backend',
         api_key_label: 'API Key Configuration',
-        vault_protected: 'Tavern Vault Protected',
+        vault_protected: 'Key Ready',
         get_key_link: 'Get Key',
         api_key_placeholder: 'Enter apikey_...',
-        save_key_title: 'Save key to Secret Vault',
+        save_key_title: 'Save API Key',
         toggle_key_title: 'Show/Hide Key',
-        clear_key_title: 'Remove Key from Vault',
+        clear_key_title: 'Clear API Key',
         btn_test_connection: 'Test Connection',
-        api_status_default: 'Keys are encrypted and stored in SillyTavern /api/secrets. Never saved in plaintext.',
-        api_status_configured: 'API Key is secured in native vault. Click "Test Connection" to verify.',
+        api_status_default: 'Key is automatically saved in extension settings and persisted across browser sessions.',
+        api_status_configured: 'API Key is configured and persisted. Click "Test Connection" to verify.',
         api_status_empty: 'Please enter TypeSafe API Key to activate Mind Compass.',
         api_status_testing: 'Connecting to TypeSafe API for diagnostic ping...',
         api_status_success: 'Connected! Latency: {latency}ms',
@@ -269,8 +242,8 @@ const I18N = {
         hud_stat_defense: 'Defense Wall',
         hud_stat_trust: 'Trust Depth',
         hud_stat_dominance: 'Dominance',
-        toast_saved_vault: 'API Key securely saved to Tavern Vault',
-        toast_cleared_vault: 'API Key permanently removed from Vault',
+        toast_saved_vault: 'API Key saved and persisted successfully',
+        toast_cleared_vault: 'API Key cleared',
         toast_missing_key: 'Please configure TypeSafe API Key in Mind Compass panel first.',
         toast_fluctuation_title: '{name} Emotional Shift',
         toast_fluctuation_body: 'Affinity: {aff} ({delta}) | Defense: {def}% | Trust: {tru}% | Expr: {expr}',
@@ -346,9 +319,6 @@ function getSettings() {
     if (!extension_settings.mind_engine) {
         extension_settings.mind_engine = Object.assign({}, DEFAULT_SETTINGS);
         saveSettingsDebounced();
-    }
-    if (extension_settings.mind_engine.apiKey) {
-        delete extension_settings.mind_engine.apiKey;
     }
     if (!extension_settings.mind_engine.macroBindings) {
         extension_settings.mind_engine.macroBindings = {};
@@ -1039,7 +1009,15 @@ async function loadSettingsDrawer() {
         });
 
         $('#btn_test_connection').on('click', async function () {
-            const key = await SecretVaultManager.getApiKey();
+            const inputVal = $('#mind_api_key').val().trim();
+            // 优先取输入框中的真实明文密钥；若为脱敏掩码或空则从内存/保险库读取
+            const isRealInput = inputVal && !inputVal.includes('••••');
+            const key = isRealInput ? inputVal : await SecretVaultManager.getApiKey();
+            if (isRealInput) {
+                // 保存真实输入值到内存与 sessionStorage，方便本次会话复用
+                await SecretVaultManager.saveApiKey(key);
+                renderKeyInputState(key);
+            }
             testApiKeyConnection(key);
         });
 
