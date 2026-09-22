@@ -379,4 +379,150 @@ export class JevEvaluator {
             is_fallback: false,
         };
     }
+
+    /**
+     * 调用 Jev 云端智能推断角色全套 4 轨开局心智状态
+     * @param {object} charProfile - 角色卡原始设定
+     * @param {number} [timeoutMs=15000] - 超时时间
+     * @returns {Promise<object>} 开局心智推荐值 { affinity, defense_prob, trust_depth, power_dynamic }
+     */
+    async analyzeInitialMindState(charProfile, timeoutMs = 15000) {
+        const state = {
+            character: {
+                name: charProfile.name || 'NPC',
+                personality: charProfile.personality || '',
+                description: charProfile.description || '',
+                system_prompt: charProfile.system_prompt || '',
+                mes_examples: charProfile.mes_examples || '',
+            },
+        };
+
+        const questions = {
+            initial_affinity: {
+                type: 'score',
+                instructions: (
+                    'Based on the character persona and lore, what should be their starting baseline affinity toward user? ' +
+                    'Level 0: Nemesis or hostile (~ -10 affinity). ' +
+                    'Level 1: Stranger, guarded (~ 10 affinity). ' +
+                    'Level 2: Friendly acquaintance (~ 25 affinity). ' +
+                    'Level 3: Warm childhood friend (~ 45 affinity). ' +
+                    'Level 4: Existing lover or deep devotion (~ 65 affinity).'
+                ),
+                criteria: [
+                    'Level 0: Nemesis or hostile grudge (~ -10 affinity)',
+                    'Level 1: Cautious stranger, neutral distant (~ 10 affinity)',
+                    'Level 2: Friendly acquaintance (~ 25 affinity)',
+                    'Level 3: Childhood friend or warm bond (~ 45 affinity)',
+                    'Level 4: Existing lover or deep devotion (~ 65 affinity)',
+                ],
+            },
+            baseline_defense: {
+                type: 'score',
+                instructions: (
+                    'What is this character initial emotional defense wall? ' +
+                    'Level 0: Completely open (~ 10% defense). ' +
+                    'Level 4: Extreme paranoia or tsundere barrier (~ 95% defense).'
+                ),
+                criteria: [
+                    'Level 0: Pure open, naive, zero barrier (~ 10% defense)',
+                    'Level 1: Mild social caution (~ 30% defense)',
+                    'Level 2: Normal polite boundary (~ 60% defense)',
+                    'Level 3: Cautious or tsundere defense (~ 80% defense)',
+                    'Level 4: Ruthless aloofness, paranoid barrier (~ 95% defense)',
+                ],
+            },
+            initial_trust: {
+                type: 'score',
+                instructions: (
+                    'What is the starting level of deep core trust this character has toward user? ' +
+                    'Level 0: Zero trust, highly suspicious (~ 5% trust). ' +
+                    'Level 4: Deep unconditional trust (~ 80% trust).'
+                ),
+                criteria: [
+                    'Level 0: Zero trust, highly suspicious (~ 5% trust)',
+                    'Level 1: Basic polite trust (~ 20% trust)',
+                    'Level 2: Developing rapport (~ 40% trust)',
+                    'Level 3: High trust, reliable (~ 60% trust)',
+                    'Level 4: Deep absolute trust (~ 80% trust)',
+                ],
+            },
+            power_dynamic: {
+                type: 'score',
+                instructions: (
+                    'What is this character conversational dominance and aura? ' +
+                    'Level 0: Submissive, timid (~ 0.8 power). ' +
+                    'Level 2: Balanced parity (~ 2.2 power). ' +
+                    'Level 4: Dominant, commanding (~ 3.8 power).'
+                ),
+                criteria: [
+                    'Level 0: Submissive, docile, timid (~ 0.8 power)',
+                    'Level 1: Soft, accommodating (~ 1.5 power)',
+                    'Level 2: Balanced, equal conversational footing (~ 2.2 power)',
+                    'Level 3: Confident, guiding, teasing (~ 3.0 power)',
+                    'Level 4: Dominant, commanding, aloof queen/boss (~ 3.8 power)',
+                ],
+            },
+        };
+
+        const payload = {
+            state,
+            model: JevEvaluator.MODEL,
+            questions,
+        };
+
+        let response = null;
+        for (const endpoint of JevEvaluator.CANDIDATE_ENDPOINTS) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const resp = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal,
+                });
+                if (resp.ok) {
+                    response = resp;
+                    break;
+                }
+            } catch (_) {
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        if (!response) {
+            return {
+                affinity: 10.0,
+                defense_prob: 0.95,
+                trust_depth: 0.05,
+                power_dynamic: 3.5,
+                is_fallback: true,
+            };
+        }
+
+        const data = await response.json();
+        const answers = data.answers || {};
+
+        const sAff = parseFloat(answers.initial_affinity?.score ?? 1.0);
+        const sDef = parseFloat(answers.baseline_defense?.score ?? 3.5);
+        const sTru = parseFloat(answers.initial_trust?.score ?? 0.5);
+        const sPow = parseFloat(answers.power_dynamic?.score ?? 3.0);
+
+        const affinity = +(-10.0 + (sAff / 4.0) * 75.0).toFixed(1);
+        const defense_prob = +(0.10 + (sDef / 4.0) * 0.85).toFixed(2);
+        const trust_depth = +(0.05 + (sTru / 4.0) * 0.75).toFixed(2);
+        const power_dynamic = +(0.8 + (sPow / 4.0) * 3.0).toFixed(1);
+
+        return {
+            affinity: Math.max(-20.0, Math.min(100.0, affinity)),
+            defense_prob: Math.max(0.05, Math.min(0.95, defense_prob)),
+            trust_depth: Math.max(0.05, Math.min(0.95, trust_depth)),
+            power_dynamic: Math.max(0.0, Math.min(4.0, power_dynamic)),
+            is_fallback: false,
+        };
+    }
 }

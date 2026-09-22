@@ -260,6 +260,26 @@ const I18N = {
         personality_analyzed: '推断完成并保存',
         personality_analyze_failed: '推断失败: {error}',
         personality_default_hint: '使用默认均衡画像',
+        hud_btn_calibrate: '开局心智校准 (仅限一次)',
+        hud_btn_collapse: '折叠面板',
+        calib_drawer_title: '开局心智定制',
+        calib_one_time_badge: '仅限一次',
+        calib_aff_label: '初始好感度',
+        calib_def_label: '初始心防护盾',
+        calib_trust_label: '初始核心信任',
+        calib_power_label: '初始气场主导',
+        calib_infer_title: 'Jev 智能推断全套人设数值',
+        calib_btn_infer: '人设智能对齐',
+        calib_lock_title: '锁定并永久固化档案',
+        calib_btn_lock: '锁定开局档案',
+        calib_toast_locked: '已锁定「{name}」开局心智档案',
+        calib_inferring: 'Jev 正在推断开局心智...',
+        calib_infer_success: '已对齐人物设定',
+        calib_power_submissive: '弱气被动',
+        calib_power_accommodating: '温和顺从',
+        calib_power_parity: '势均力敌',
+        calib_power_guiding: '从容控场',
+        calib_power_dominant: '绝对支配',
     },
     en: {
         drawer_title: 'Mind Compass',
@@ -333,6 +353,26 @@ const I18N = {
         personality_analyzed: 'Analysis complete & saved',
         personality_analyze_failed: 'Analysis failed: {error}',
         personality_default_hint: 'Using default balanced profile',
+        hud_btn_calibrate: 'Initial Mind Setup (One-time only)',
+        hud_btn_collapse: 'Collapse Panel',
+        calib_drawer_title: 'Initial Mind Setup',
+        calib_one_time_badge: 'One-time Only',
+        calib_aff_label: 'Initial Affinity',
+        calib_def_label: 'Initial Defense Wall',
+        calib_trust_label: 'Initial Trust Depth',
+        calib_power_label: 'Initial Dominance',
+        calib_infer_title: 'Jev auto-infers all 4 traits from persona',
+        calib_btn_infer: 'Auto Align',
+        calib_lock_title: 'Lock and finalize profile permanently',
+        calib_btn_lock: 'Lock Profile',
+        calib_toast_locked: 'Locked initial mind profile for {name}',
+        calib_inferring: 'Jev is analyzing character persona...',
+        calib_infer_success: 'Aligned with character persona',
+        calib_power_submissive: 'Submissive',
+        calib_power_accommodating: 'Accommodating',
+        calib_power_parity: 'Parity',
+        calib_power_guiding: 'Guiding',
+        calib_power_dominant: 'Dominant',
     }
 };
 
@@ -420,6 +460,7 @@ function getCharacterMindState(characterId) {
             power_dynamic: extData.power_dynamic !== undefined ? parseFloat(extData.power_dynamic) : 3.5,
             expression: extData.expression || 'neutral',
             tts_style: extData.tts_style || 'calm',
+            is_initialized: !!extData.is_initialized,
         };
     }
 
@@ -432,6 +473,7 @@ function getCharacterMindState(characterId) {
         power_dynamic: 3.5,
         expression: 'neutral',
         tts_style: 'calm',
+        is_initialized: false,
     };
 }
 
@@ -503,6 +545,7 @@ async function saveCharacterMindState(characterId, mindData) {
         power_dynamic: mindData.power_score !== undefined ? mindData.power_score : (mindData.power_dynamic || 3.5),
         expression: mindData.expression || 'neutral',
         tts_style: mindData.tts_style || 'calm',
+        is_initialized: mindData.is_initialized !== undefined ? mindData.is_initialized : !!existingExt.is_initialized,
         updated_at: new Date().toISOString(),
     };
 
@@ -728,20 +771,29 @@ function renderPersonalitySliders(profile, hasSavedProfile) {
     }
 }
 
+function getPowerDynamicLabel(score) {
+    const s = parseFloat(score);
+    if (s < 1.0) return t('calib_power_submissive');
+    if (s < 2.0) return t('calib_power_accommodating');
+    if (s < 3.0) return t('calib_power_parity');
+    if (s < 3.6) return t('calib_power_guiding');
+    return t('calib_power_dominant');
+}
+
 /**
  * 视口边界钳位：防止面板在折叠/展开、拖拽或窗口缩放时超出屏幕视窗
  * @param {boolean} isExpanding - 是否处于展开触发动作
+ * @param {number|null} customHeight - 自定义预期高度 (如展开校准抽屉时)
  */
-function clampHudToViewport(isExpanding = false) {
+function clampHudToViewport(isExpanding = false, customHeight = null) {
     const hud = document.getElementById('jev-mind-hud');
     if (!hud) return;
 
     const willBeExpanded = isExpanding || !hud.classList.contains('collapsed');
     const safeMargin = 10;
 
-    // 展开态宽度固定 245px，高度约 245px；折叠态宽度约 75px，高度约 32px
     const targetWidth = willBeExpanded ? 245 : (hud.offsetWidth || 75);
-    const targetHeight = willBeExpanded ? Math.max(245, hud.offsetHeight) : (hud.offsetHeight || 32);
+    const targetHeight = willBeExpanded ? Math.max(customHeight || 245, hud.offsetHeight) : (hud.offsetHeight || 32);
 
     const maxLeft = Math.max(safeMargin, window.innerWidth - targetWidth - safeMargin);
     const maxTop = Math.max(safeMargin, window.innerHeight - targetHeight - safeMargin);
@@ -856,7 +908,10 @@ function ensureHudMounted() {
                 </div>
                 <div class="hud-header-right">
                     <span id="hud-stage-pill" class="hud-stage-pill">初见戒备</span>
-                    <button id="hud-btn-collapse" class="hud-btn-collapse" title="折叠面板">
+                    <button id="hud-btn-calibrate" class="hud-btn-calibrate pulse" data-i18n-title="hud_btn_calibrate" title="开局心智校准 (仅限一次)">
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                    <button id="hud-btn-collapse" class="hud-btn-collapse" data-i18n-title="hud_btn_collapse" title="折叠面板">
                         <i class="fa-solid fa-chevron-up"></i>
                     </button>
                 </div>
@@ -902,6 +957,55 @@ function ensureHudMounted() {
                     <div id="hud-power-fill" class="hud-fill-fine hud-fill-pow" style="width: 87.5%;"></div>
                 </div>
             </div>
+
+            <!-- 开局心智 4 轨校准微抽屉 (仅限一次) -->
+            <div id="hud-calibration-drawer" class="hud-calib-drawer" style="display: none;">
+                <div class="hud-calib-header">
+                    <span class="hud-calib-title" data-i18n="calib_drawer_title">开局心智定制</span>
+                    <span class="hud-calib-badge" data-i18n="calib_one_time_badge">仅限一次</span>
+                </div>
+                <!-- 1. 初始好感度 -->
+                <div class="hud-calib-row">
+                    <div class="hud-calib-label-row">
+                        <span data-i18n="calib_aff_label">初始好感度</span>
+                        <span id="calib-val-aff" class="hud-calib-num">10.0</span>
+                    </div>
+                    <input type="range" id="calib-slider-aff" class="hud-calib-slider" min="-20" max="100" step="0.5" value="10.0" />
+                </div>
+                <!-- 2. 初始心防壁垒 -->
+                <div class="hud-calib-row">
+                    <div class="hud-calib-label-row">
+                        <span data-i18n="calib_def_label">初始心防护盾</span>
+                        <span id="calib-val-def" class="hud-calib-num">95%</span>
+                    </div>
+                    <input type="range" id="calib-slider-def" class="hud-calib-slider" min="5" max="95" step="1" value="95" />
+                </div>
+                <!-- 3. 初始核心信任 -->
+                <div class="hud-calib-row">
+                    <div class="hud-calib-label-row">
+                        <span data-i18n="calib_trust_label">初始核心信任</span>
+                        <span id="calib-val-trust" class="hud-calib-num">5%</span>
+                    </div>
+                    <input type="range" id="calib-slider-trust" class="hud-calib-slider" min="5" max="95" step="1" value="5" />
+                </div>
+                <!-- 4. 初始气场博弈 -->
+                <div class="hud-calib-row">
+                    <div class="hud-calib-label-row">
+                        <span data-i18n="calib_power_label">初始气场主导</span>
+                        <span id="calib-val-power" class="hud-calib-num">3.50</span>
+                    </div>
+                    <input type="range" id="calib-slider-power" class="hud-calib-slider" min="0.0" max="4.0" step="0.1" value="3.5" />
+                </div>
+                <!-- 动作按键 -->
+                <div class="hud-calib-actions">
+                    <button id="hud-btn-calib-infer" class="hud-calib-btn hud-calib-btn-infer" data-i18n-title="calib_infer_title" title="Jev 智能推断全套人设数值">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i><span data-i18n="calib_btn_infer">人设智能对齐</span>
+                    </button>
+                    <button id="hud-btn-calib-lock" class="hud-calib-btn hud-calib-btn-lock" data-i18n-title="calib_lock_title" title="锁定并永久固化档案">
+                        <i class="fa-solid fa-lock"></i><span data-i18n="calib_btn_lock">锁定开局档案</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     `;
@@ -909,6 +1013,7 @@ function ensureHudMounted() {
     $('body').append(hudHtml);
     applyLocalization($('#jev-mind-hud'));
     initHudInteraction();
+    initCalibrationEvents();
 }
 
 /**
@@ -955,6 +1060,172 @@ function updateHudDisplay(data, delta = 0) {
         deltaTag.addClass('show');
         setTimeout(() => deltaTag.removeClass('show'), 2200);
     }
+
+    // 严格只能改动一次：若已初始化，彻底隐藏校准按钮与抽屉；未初始化时才展示
+    const isLocked = data.is_initialized === true;
+    if (isLocked) {
+        $('#hud-btn-calibrate').hide();
+        $('#hud-calibration-drawer').hide();
+    } else {
+        $('#hud-btn-calibrate').show();
+        if ($('#hud-calibration-drawer').is(':hidden')) {
+            $('#calib-slider-aff').val(affinity);
+            $('#calib-val-aff').text(affinity.toFixed(1));
+
+            $('#calib-slider-def').val(defensePct);
+            $('#calib-val-def').text(`${defensePct}%`);
+
+            $('#calib-slider-trust').val(trustPct);
+            $('#calib-val-trust').text(`${trustPct}%`);
+
+            $('#calib-slider-power').val(powerScore.toFixed(1));
+            $('#calib-val-power').text(`${powerScore.toFixed(1)} (${getPowerDynamicLabel(powerScore)})`);
+        }
+    }
+}
+
+/**
+ * 绑定 HUD 开局心智校准面板交互 (4 轨全量调节，仅限设定一次)
+ */
+function initCalibrationEvents() {
+    // 展开/收起校准微抽屉
+    $('#hud-btn-calibrate').off('click').on('click', function (e) {
+        e.stopPropagation();
+        const drawer = $('#hud-calibration-drawer');
+        const willShow = drawer.is(':hidden');
+        drawer.slideToggle(180, function () {
+            if (willShow) {
+                clampHudToViewport(true, 430);
+            } else {
+                clampHudToViewport(false);
+            }
+        });
+        if (willShow) clampHudToViewport(true, 430);
+    });
+
+    // 1. 好感度滑块交互
+    $('#calib-slider-aff').on('input', function () {
+        const val = parseFloat($(this).val());
+        $('#calib-val-aff').text(val.toFixed(1));
+        const stg = getStage(val);
+        $('#hud-stage-pill').text(stg);
+        $('#hud-affinity-val').text(`${val.toFixed(2)} / 100`);
+        $('#hud-affinity-fill').css('width', `${Math.min(100, Math.max(0, val))}%`);
+        $('#hud-mini-aff').text(val.toFixed(1));
+    });
+
+    // 2. 心防滑块交互
+    $('#calib-slider-def').on('input', function () {
+        const val = parseInt($(this).val(), 10);
+        $('#calib-val-def').text(`${val}%`);
+        $('#hud-defense-val').text(`${val}%`);
+        $('#hud-defense-fill').css('width', `${val}%`);
+    });
+
+    // 3. 信任滑块交互
+    $('#calib-slider-trust').on('input', function () {
+        const val = parseInt($(this).val(), 10);
+        $('#calib-val-trust').text(`${val}%`);
+        $('#hud-trust-val').text(`${val}%`);
+        $('#hud-trust-fill').css('width', `${val}%`);
+    });
+
+    // 4. 气场滑块交互
+    $('#calib-slider-power').on('input', function () {
+        const val = parseFloat($(this).val());
+        $('#calib-val-power').text(`${val.toFixed(1)} (${getPowerDynamicLabel(val)})`);
+        $('#hud-power-val').text(val.toFixed(2));
+        const powerPct = Math.round((val / 4.0) * 100);
+        $('#hud-power-fill').css('width', `${Math.min(100, Math.max(0, powerPct))}%`);
+    });
+
+    // 动作 1：Jev 智能一键对齐人设
+    $('#hud-btn-calib-infer').off('click').on('click', async function (e) {
+        e.stopPropagation();
+        const { charId, char } = resolveCurrentCharacter();
+        if (!char || charId === undefined) {
+            if (window.toastr) window.toastr.warning('请先在聊天中选择一位角色', t('drawer_title'));
+            return;
+        }
+
+        const apiKey = await SecretVaultManager.getApiKey();
+        if (!apiKey) {
+            if (window.toastr) window.toastr.warning(t('toast_missing_key'), t('drawer_title'));
+            return;
+        }
+
+        const btn = $(this);
+        const originalHtml = btn.html();
+        btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>');
+        if (window.toastr) window.toastr.info(t('calib_inferring'), t('drawer_title'));
+
+        try {
+            const evaluator = new JevEvaluator(apiKey);
+            const charProfile = {
+                name: char.name || 'NPC',
+                personality: char.personality || char.data?.personality || '',
+                description: char.description || char.data?.description || '',
+                system_prompt: char.system_prompt || char.data?.system_prompt || '',
+                mes_examples: char.mes_example || char.data?.mes_example || '',
+            };
+
+            const inferred = await evaluator.analyzeInitialMindState(charProfile, 15000);
+
+            // 回显到 4 轨滑块并触发预览
+            $('#calib-slider-aff').val(inferred.affinity).trigger('input');
+            $('#calib-slider-def').val(Math.round(inferred.defense_prob * 100)).trigger('input');
+            $('#calib-slider-trust').val(Math.round(inferred.trust_depth * 100)).trigger('input');
+            $('#calib-slider-power').val(inferred.power_dynamic).trigger('input');
+
+            if (window.toastr) window.toastr.success(t('calib_infer_success'), t('drawer_title'));
+        } catch (err) {
+            console.warn(`[${MODULE_NAME}] 开局人设对齐失败:`, err);
+            if (window.toastr) window.toastr.error(`${err.message}`, t('drawer_title'));
+        } finally {
+            btn.prop('disabled', false).html(originalHtml);
+        }
+    });
+
+    // 动作 2：锁定开局档案 (严格只能执行一次)
+    $('#hud-btn-calib-lock').off('click').on('click', async function (e) {
+        e.stopPropagation();
+        const { charId, char } = resolveCurrentCharacter();
+        if (!char || charId === undefined) {
+            if (window.toastr) window.toastr.warning('请先在聊天中选择一位角色', t('drawer_title'));
+            return;
+        }
+
+        const finalAff = parseFloat($('#calib-slider-aff').val());
+        const finalDef = +(parseInt($('#calib-slider-def').val(), 10) / 100.0).toFixed(2);
+        const finalTrust = +(parseInt($('#calib-slider-trust').val(), 10) / 100.0).toFixed(2);
+        const finalPower = parseFloat($('#calib-slider-power').val());
+        const finalStage = getStage(finalAff);
+
+        const mindData = {
+            affinity: finalAff,
+            relationship_stage: finalStage,
+            defense_prob: finalDef,
+            trust_depth: finalTrust,
+            power_dynamic: finalPower,
+            momentum: 0.0,
+            is_initialized: true,
+            updated_at: new Date().toISOString(),
+        };
+
+        // 1. 持久化落盘角色卡
+        await saveCharacterMindState(charId, mindData);
+
+        // 2. 刷新 HUD 界面并彻底隐藏校准通道（只能改一次）
+        updateHudDisplay(mindData);
+        $('#hud-calibration-drawer').slideUp(180, function () {
+            clampHudToViewport(false);
+        });
+        $('#hud-btn-calibrate').fadeOut(200);
+
+        if (window.toastr) {
+            window.toastr.success(t('calib_toast_locked', { name: char.name }), t('drawer_title'));
+        }
+    });
 }
 
 /**
@@ -1257,6 +1528,7 @@ async function loadSettingsDrawer() {
                 power_score: 3.5,
                 expression: 'neutral',
                 tts_style: 'calm',
+                is_initialized: false,
             };
 
             const binding = getCharacterMacroBinding(char.name);
@@ -1332,16 +1604,60 @@ function registerCustomMacroBinding(affinityKey, stageKey) {
     }
 }
 
+let lastSyncedCharId = null;
+
 /**
- * 会话切换/新开会话同步
+ * 鲁棒获取当前激活角色信息与索引 (兼容 context.characterId, this_chid, DOM 状态)
+ */
+function resolveCurrentCharacter() {
+    const context = getContext();
+    if (!context || !context.characters || !Array.isArray(context.characters)) {
+        return { charId: undefined, char: null };
+    }
+
+    let charId = context.characterId;
+    if (charId === undefined || charId === null || charId === '') {
+        if (typeof this_chid !== 'undefined' && this_chid !== undefined && this_chid !== null && this_chid !== '') {
+            charId = this_chid;
+        }
+    }
+
+    if (charId === undefined || charId === null || charId === '') {
+        const selectedEl = $('.character_select.selected, .character_select[selected]');
+        if (selectedEl.length > 0) {
+            const chidAttr = selectedEl.attr('chid');
+            if (chidAttr !== undefined && chidAttr !== null && chidAttr !== '') {
+                charId = chidAttr;
+            }
+        }
+    }
+
+    if (charId !== undefined && charId !== null && charId !== '' && context.characters) {
+        const char = context.characters[charId];
+        if (char) return { charId: String(charId), char };
+    }
+
+    return { charId: undefined, char: null };
+}
+
+/**
+ * 会话切换/新开会话/页面就绪同步
  */
 function onContextSync() {
     const context = getContext();
-    if (!context || context.characterId === undefined) return;
-    const char = context.characters?.[context.characterId];
-    if (!char) return;
+    if (!context) return;
 
-    const mindData = getCharacterMindState(context.characterId);
+    const { charId, char } = resolveCurrentCharacter();
+    if (!char || charId === undefined) {
+        // 当前未选择具体角色卡，保持 HUD 默认显示
+        const defaultTitle = t('hud_char_default');
+        $('#hud-char-title').text(defaultTitle);
+        return;
+    }
+
+    lastSyncedCharId = charId;
+
+    const mindData = getCharacterMindState(charId);
     if (!mindData) return;
 
     const binding = getCharacterMacroBinding(char.name);
@@ -1356,8 +1672,7 @@ function onContextSync() {
         if (binding.stage !== 'relationship_stage') context.executeSlashCommands(`/setvar key=relationship_stage ${mindData.relationship_stage}`);
     }
 
-    const defaultTitle = t('hud_char_default');
-    $('#hud-char-title').text(char.name ? char.name : defaultTitle);
+    $('#hud-char-title').text(char.name || t('hud_char_default'));
     updateHudDisplay(mindData, 0);
 
     // 同步刷新宏选择器
@@ -1490,6 +1805,7 @@ async function evaluateMessage(messageId) {
         const data = {
             ...turnReport,
             tts_style: evaluation.tts_style,
+            is_initialized: true,
         };
 
         const s = getSettings();
@@ -1559,7 +1875,24 @@ jQuery(async () => {
     // 3. 初始同步角色档案
     onContextSync();
 
-    // 4. 监听酒馆生命周期事件
+    // 4. 全生命周期事件强力监听 (覆盖刷新、切会话、翻页、加载完毕等所有切片)
+    const lifecycleEvents = [
+        event_types.APP_READY,
+        event_types.CHAT_LOADED,
+        event_types.CHAT_CHANGED,
+        event_types.CHARACTER_PAGE_LOADED,
+        event_types.SETTINGS_LOADED,
+        event_types.MORE_MESSAGES_LOADED,
+    ];
+    lifecycleEvents.forEach(evt => {
+        if (evt) {
+            eventSource.on(evt, () => {
+                onContextSync();
+                populateMacroSelector();
+            });
+        }
+    });
+
     eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (messageId) => {
         evaluateMessage(messageId);
     });
@@ -1568,25 +1901,21 @@ jQuery(async () => {
         evaluateMessage(messageId);
     });
 
-    eventSource.on(event_types.CHAT_CHANGED, () => {
-        onContextSync();
-        populateMacroSelector();
-    });
+    // 5. 毫秒级主动探测梯级 (应对单页应用冷启动与异步网络请求延后落地)
+    setTimeout(onContextSync, 200);
+    setTimeout(onContextSync, 600);
+    setTimeout(onContextSync, 1500);
+    setTimeout(onContextSync, 3000);
 
-    if (event_types.CHARACTERS_LOADED) {
-        eventSource.on(event_types.CHARACTERS_LOADED, () => {
-            populateMacroSelector();
-        });
-    }
-
-    if (event_types.CHARACTER_SELECTED) {
-        eventSource.on(event_types.CHARACTER_SELECTED, () => {
+    // 6. 极轻量角色状态变更守护器 (Active Watcher: 1s 轮询仅比对指针与ID，0性能损耗)
+    setInterval(() => {
+        const { charId, char } = resolveCurrentCharacter();
+        if (char && charId !== lastSyncedCharId) {
             onContextSync();
-            populateMacroSelector();
-        });
-    }
+        }
+    }, 1000);
 
-    // 5. 语言切换时自动重绘国际化
+    // 7. 语言切换时自动重绘国际化
     if (window.i18next && typeof window.i18next.on === 'function') {
         window.i18next.on('languageChanged', () => {
             applyLocalization($('#mind_engine_settings'));
