@@ -7,7 +7,7 @@
   "js": "index.js",
   "css": "style.css",
   "author": "Antigravity",
-  "version": "2.0.0",
+  "version": "2.1.1",
   "homePage": "https://github.com/scd13150/st-Mind-Compass",
   "auto_update": true,
   "description": "「灵犀」(Mind Compass) - 基于 TypeSafe Jev 的客观心智与羁绊动力学罗盘。原生酒馆UI风格、中英自适应双语、原生API密钥保险库防护、社会渗透洋葱信任模型与低通惯性微动量。"

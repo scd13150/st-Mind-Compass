@@ -151,6 +151,141 @@
     background: var(--black30a, rgba(255, 255, 255, 0.08));
 }
 
+.hud-btn-calibrate {
+    color: var(--SmartThemeEmColor, #94a3b8);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    background: transparent;
+    border: none;
+    transition: color 0.15s, background 0.15s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hud-btn-calibrate:hover {
+    color: var(--SmartThemeQuoteColor, #38bdf8);
+    background: var(--black30a, rgba(255, 255, 255, 0.08));
+}
+
+.hud-btn-calibrate.pulse {
+    animation: calib-pulse 2s infinite ease-in-out;
+    color: var(--SmartThemeQuoteColor, #38bdf8);
+}
+
+@keyframes calib-pulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* 4 轨开局校准抽屉 */
+.hud-calib-drawer {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.hud-calib-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.hud-calib-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--SmartThemeQuoteColor, #38bdf8);
+    letter-spacing: 0.3px;
+}
+
+.hud-calib-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    font-weight: 600;
+}
+
+.hud-calib-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hud-calib-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--SmartThemeEmColor, #94a3b8);
+}
+
+.hud-calib-num {
+    font-family: var(--monoFontFamily, monospace);
+    font-weight: 600;
+    color: var(--SmartThemeBodyColor, #f1f5f9);
+}
+
+.hud-calib-slider {
+    width: 100%;
+    height: 4px;
+    accent-color: var(--SmartThemeQuoteColor, #38bdf8);
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.hud-calib-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.hud-calib-btn {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.hud-calib-btn-infer {
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--SmartThemeQuoteColor, #38bdf8);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.hud-calib-btn-infer:hover {
+    background: rgba(56, 189, 248, 0.25);
+}
+
+.hud-calib-btn-lock {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.hud-calib-btn-lock:hover {
+    background: rgba(16, 185, 129, 0.3);
+}
+
 /* 属性仪表条目 */
 .hud-row {
     margin-bottom: 6px;
